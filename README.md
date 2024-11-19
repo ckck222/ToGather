@@ -108,31 +108,21 @@
    - `participant_id`: 고유 식별자.
    - `event_id`: `Event` 테이블과 연결.
    - `user_id`: 사용자 고유 ID.
+   - `user_password`: 사용자 고유 password.
 
 ---
 
-### **b. 테이블 관계**
-- **Event** ↔ **Event Details**: 1:N 관계 (하나의 이벤트가 여러 세부 정보를 가짐).
-- **Event** ↔ **Participants**: 1:N 관계 (하나의 이벤트에 여러 사용자가 참여).
-
----
-
-### **c. 데이터 샘플**
+### **b. 데이터 샘플**
 #### **Event Table**
 | event_id | event_name   | created_by | created_at          |
 |----------|--------------|------------|---------------------|
 | 1        | Team Meeting | user123    | 2024-11-19 10:00:00 |
 
-#### **Event Details Table**
-| detail_id | event_id | data_type | data_value           |
-|-----------|----------|-----------|----------------------|
-| 1         | 1        | time      | 2024-11-20T15:00:00 |
-| 2         | 1        | location  | 강남역 카페           |
 
 #### **Participants Table**
-| participant_id | event_id | user_id  | response_data          |
-|----------------|----------|----------|-------------------------|
-| 1              | 1        | user456  | {"time": "2024-11-20"} |
+| participant_id | event_id | user_id  | user_password |
+|----------------|----------|----------|----------|
+| 1              | 1        | user456  |4522      |
 
 ---
 
