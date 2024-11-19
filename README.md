@@ -104,17 +104,10 @@
    - `created_by`: 이벤트 생성자.
    - `created_at`: 생성 날짜.
 
-2. **Event Details Table**: 각 이벤트의 세부 정보(참여자, 시간, 투표 결과 등)를 저장.
-   - `event_id`: `Event` 테이블과 연결 (Foreign Key).
-   - `detail_id`: 세부 정보 고유 식별자.
-   - `data_type`: 데이터 유형 (시간, 장소 등).
-   - `data_value`: 데이터 값(JSON 형식).
-
-3. **Participants Table**: 이벤트에 참여하는 사용자 정보를 저장.
+2. **Participants Table**: 이벤트에 참여하는 사용자 정보를 저장.
    - `participant_id`: 고유 식별자.
    - `event_id`: `Event` 테이블과 연결.
    - `user_id`: 사용자 고유 ID.
-   - `response_data`: 사용자의 투표 결과(JSON 형식).
 
 ---
 
