@@ -126,158 +126,212 @@
 | 1              | 1        | user456  |4522      |
 
 ---
-이해했습니다! 말씀하신 구조는 히트맵을 **날짜를 기준으로 열(Column)**로 하고, **시간을 기준으로 행(Row)**으로 구성하는 것입니다. 이 히트맵은 사용자가 30분 단위로 선택할 수 있게 하고, 선택 횟수에 따라 색상이 짙어지는 형태로 설계할 수 있습니다.
+아주 좋습니다! 말씀하신 사항들을 기반으로 히트맵을 개선해보겠습니다. 아래는 개선된 설계와 구현 방법입니다.
 
 ---
 
-## **구현 계획**
+## **개선사항 적용**
 
-1. **히트맵 기본 구조**
-   - **X축(열)**: 사용자가 선택한 가능한 날짜(예: `11/22`, `11/23`, `11/25`).
-   - **Y축(행)**: 시간 범위(예: `10:00`, `10:30`, ... `17:00`).
-   - 히트맵의 각 셀은 특정 날짜-시간 조합을 나타냅니다.
+### **개선된 요구사항**
 
-2. **데이터 초기화**
-   - 각 셀의 초기값은 `0`(선택 없음).
-   - 사용자가 선택할 때마다 해당 셀의 값을 증가시킴.
+1. **시간 순서 변경**:
+   - 시간은 위에서 아래로 진행 (10:00 → 17:00).
 
-3. **히트맵 UI**
-   - 셀의 색상은 선택 횟수에 따라 점점 짙어지도록 설정.
-   - JavaScript 라이브러리인 **ApexCharts**를 사용하여 구현.
+2. **한 사용자당 최대 1번 클릭 가능**:
+   - 로그인 기능 추가 전에는 임시로 JavaScript에서 한 번만 클릭 가능하도록 설정.
 
-4. **사용자 선택 저장**
-   - 사용자가 클릭한 셀의 날짜-시간 정보를 서버에 전송.
-   - 다른 사용자의 선택이 반영된 데이터로 히트맵을 실시간 업데이트.
+3. **드래그 기능 추가**:
+   - 사용자가 여러 셀을 한 번에 선택할 수 있도록 구현.
 
 ---
 
-## **코드 예제**
+### **구현 코드**
 
-### **1. HTML 구조**
+#### **1. HTML 및 JavaScript**
 
 ```html
 <div id="heatmap"></div>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-```
 
----
+<script>
+    // 시간 범위 및 날짜 초기화
+    const selectedDates = ["11/22", "11/23", "11/25"];
+    const timeRange = ["10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"].reverse(); // 시간 뒤집기
 
-### **2. JavaScript: 히트맵 생성**
+    // 사용자당 선택 횟수 제한
+    const userSelections = new Set();
 
-```javascript
-// 선택한 날짜와 시간 범위 (예제 데이터)
-const selectedDates = ["11/22", "11/23", "11/25"]; // X축
-const timeRange = ["10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"]; // Y축
+    // 히트맵 데이터 초기화
+    const heatmapData = timeRange.map(time => ({
+        name: time,
+        data: selectedDates.map(date => ({ x: date, y: 0 }))
+    }));
 
-// 히트맵 데이터 초기화
-const heatmapData = timeRange.map(time => ({
-    name: time, // Y축 라벨
-    data: selectedDates.map(date => ({ x: date, y: 0 })) // X축 데이터
-}));
+    // ApexCharts 설정
+    const options = {
+        chart: {
+            type: "heatmap",
+            height: 450,
+            events: {
+                // 셀 클릭 이벤트
+                click: function(event, chartContext, config) {
+                    const { seriesIndex, dataPointIndex } = config;
 
-// ApexCharts 설정
-const options = {
-    chart: {
-        type: "heatmap",
-        height: 450,
-        events: {
-            click: function(event, chartContext, config) {
-                // 클릭한 셀 정보 가져오기
-                const { seriesIndex, dataPointIndex } = config;
+                    if (seriesIndex !== undefined && dataPointIndex !== undefined) {
+                        const time = heatmapData[seriesIndex].name;
+                        const date = heatmapData[seriesIndex].data[dataPointIndex].x;
 
-                if (seriesIndex !== undefined && dataPointIndex !== undefined) {
-                    // 선택된 셀의 데이터 업데이트
-                    const time = heatmapData[seriesIndex].name;
-                    const date = heatmapData[seriesIndex].data[dataPointIndex].x;
-                    heatmapData[seriesIndex].data[dataPointIndex].y += 1; // 선택 횟수 증가
+                        // 이미 선택된 셀인지 확인
+                        const cellId = `${date}-${time}`;
+                        if (userSelections.has(cellId)) {
+                            alert("이 시간과 날짜는 이미 선택했습니다!");
+                            return;
+                        }
 
-                    // 히트맵 업데이트
-                    chart.updateSeries(heatmapData);
+                        // 선택 횟수 증가 및 사용자 선택 추가
+                        heatmapData[seriesIndex].data[dataPointIndex].y += 1;
+                        userSelections.add(cellId);
 
-                    console.log(`선택된 시간: ${time}, 날짜: ${date}`);
+                        // 히트맵 업데이트
+                        chart.updateSeries(heatmapData);
+                        console.log(`선택된 시간: ${time}, 날짜: ${date}`);
+                    }
                 }
             }
-        }
-    },
-    plotOptions: {
-        heatmap: {
-            shadeIntensity: 0.5,
-            colorScale: {
-                ranges: [
-                    { from: 0, to: 1, name: "Low", color: "#D6EAF8" },
-                    { from: 2, to: 3, name: "Medium", color: "#5DADE2" },
-                    { from: 4, to: 5, name: "High", color: "#154360" }
-                ]
+        },
+        plotOptions: {
+            heatmap: {
+                shadeIntensity: 0.5,
+                colorScale: {
+                    ranges: [
+                        { from: 0, to: 1, name: "Low", color: "#D6EAF8" },
+                        { from: 2, to: 3, name: "Medium", color: "#5DADE2" },
+                        { from: 4, to: 5, name: "High", color: "#154360" }
+                    ]
+                }
             }
-        }
-    },
-    dataLabels: {
-        enabled: true,
-        style: {
-            colors: ["#fff"]
-        }
-    },
-    series: heatmapData,
-    xaxis: {
-        type: "category",
+        },
+        dataLabels: {
+            enabled: true,
+            style: {
+                colors: ["#fff"]
+            }
+        },
+        series: heatmapData,
+        xaxis: {
+            type: "category",
+            title: {
+                text: "날짜"
+            }
+        },
+        yaxis: {
+            title: {
+                text: "시간"
+            }
+        },
         title: {
-            text: "날짜"
+            text: "시간-날짜 히트맵",
+            align: "center"
         }
-    },
-    yaxis: {
-        title: {
-            text: "시간"
-        }
-    },
-    title: {
-        text: "시간-날짜 히트맵",
-        align: "center"
-    }
-};
+    };
 
-// 히트맵 렌더링
-const chart = new ApexCharts(document.querySelector("#heatmap"), options);
-chart.render();
+    // 히트맵 렌더링
+    const chart = new ApexCharts(document.querySelector("#heatmap"), options);
+    chart.render();
+
+    // 드래그 선택 기능 구현
+    let isDragging = false;
+    let startCell = null;
+
+    document.querySelector("#heatmap").addEventListener("mousedown", (event) => {
+        isDragging = true;
+        startCell = getCellUnderCursor(event); // 드래그 시작 셀 저장
+    });
+
+    document.querySelector("#heatmap").addEventListener("mousemove", (event) => {
+        if (!isDragging) return;
+        const currentCell = getCellUnderCursor(event); // 드래그 중인 현재 셀
+        if (startCell && currentCell && startCell !== currentCell) {
+            const [date, time] = currentCell.split("-");
+            // 히트맵 데이터 업데이트
+            updateCell(date, time);
+        }
+    });
+
+    document.addEventListener("mouseup", () => {
+        isDragging = false;
+        startCell = null;
+    });
+
+    function getCellUnderCursor(event) {
+        const target = event.target.closest(".apexcharts-heatmap-rect");
+        return target ? target.getAttribute("data-cell-id") : null;
+    }
+
+    function updateCell(date, time) {
+        const cellId = `${date}-${time}`;
+        if (!userSelections.has(cellId)) {
+            // 셀 업데이트 및 선택 추가
+            const seriesIndex = timeRange.indexOf(time);
+            const dataPointIndex = selectedDates.indexOf(date);
+            heatmapData[seriesIndex].data[dataPointIndex].y += 1;
+            userSelections.add(cellId);
+            chart.updateSeries(heatmapData);
+        }
+    }
+</script>
 ```
 
 ---
 
-### **3. 설명**
+### **개선된 기능**
 
-1. **데이터 초기화**
-   - 각 시간 범위와 날짜의 조합을 기반으로 히트맵 데이터를 생성.
-   - 초기값(`y`)은 `0`.
+1. **시간 순서 변경**:
+   - `timeRange.reverse()`를 사용해 시간 순서를 위에서 아래로 변경.
 
-2. **셀 클릭 이벤트**
-   - 사용자가 셀을 클릭하면 선택 횟수(`y`)를 증가시킴.
-   - `chart.updateSeries()`를 사용해 히트맵을 동적으로 업데이트.
+2. **사용자당 최대 1번 클릭**:
+   - `Set` 객체를 사용해 사용자가 이미 선택한 날짜-시간 셀을 추적.
+   - 동일한 셀을 클릭하면 알림(`alert`)을 띄워 중복 선택 방지.
 
-3. **색상 설정**
-   - `plotOptions.heatmap.colorScale.ranges`에서 선택 횟수(`y` 값)에 따라 색상을 정의.
-
----
-
-### **4. 결과**
-- X축: 선택한 날짜(`11/22`, `11/23`, `11/25`).
-- Y축: 시간 범위(`10:00` ~ `17:00`).
-- 각 셀:
-  - 초기값: `0` (회색).
-  - 선택 횟수 증가 시 색상이 점점 짙어짐(밝은 파랑 → 어두운 파랑).
+3. **드래그 기능**:
+   - 마우스 드래그를 통해 여러 셀을 한 번에 선택 가능.
+   - `mousedown`, `mousemove`, `mouseup` 이벤트로 구현.
 
 ---
 
-### **추가 작업**
+### **사용 예시**
 
-1. **데이터 서버 저장**
-   - 사용자가 셀을 클릭할 때 AJAX 요청으로 선택 데이터를 서버에 저장.
-   - 서버에서 전체 데이터를 가져와 히트맵 업데이트.
+1. **히트맵 초기 상태**:
+   - 모든 셀이 초기값 `0`으로 표시.
 
-2. **실시간 업데이트**
-   - WebSocket 또는 주기적인 데이터 요청(AJAX)으로 다른 사용자의 선택을 실시간 반영.
+2. **셀 클릭**:
+   - 특정 셀(날짜-시간 조합)을 클릭하면 해당 셀의 값이 `1` 증가.
+   - 동일 셀 재선택 불가.
 
-3. **UI 개선**
-   - 날짜 범위 필터링 기능 추가.
-   - 셀 선택 시 툴팁에 세부 정보 표시.
+3. **드래그 선택**:
+   - 마우스를 드래그하여 여러 셀을 한 번에 선택.
+   - 드래그한 모든 셀의 값이 증가.
 
-위 코드를 기반으로 구현을 진행하면서 추가적인 요구사항이 있다면 언제든 말씀해주세요! 😊
+---
+
+### **결과 화면**
+
+- **X축**: 날짜(`11/22`, `11/23`, `11/25`).
+- **Y축**: 시간(`10:00`, `10:30`, ..., `17:00`).
+- **셀 색상**: 선택 횟수에 따라 점점 짙어짐.
+
+---
+
+### **추가 구현 가능 사항**
+
+1. **서버 저장**:
+   - 사용자가 선택한 데이터를 AJAX로 서버에 저장.
+
+2. **실시간 업데이트**:
+   - 다른 사용자의 선택을 실시간으로 반영.
+
+3. **선택 제거 기능**:
+   - 드래그한 셀을 다시 클릭하면 선택 해제.
+
+추가적으로 궁금한 점이나 필요한 사항이 있으면 말씀해주세요! 😊
 
